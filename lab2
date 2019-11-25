@@ -1,0 +1,272 @@
+import control.matlab as cm
+import numpy as n
+import matplotlib.pyplot as plt
+import sympy as s
+import control as c
+
+
+def PosKoefs(tf):
+    denominator = (tf.den[0])  # знаменатель
+    coefficient = denominator[0]
+    k = 0
+    for i in range(0, len(coefficient), 1):
+        if coefficient[i] > 0:
+            k = k + 1
+        else:
+            k = 0
+    if k == len(coefficient):
+        print("\n" + "Коэффициенты характеристического уравнения:")
+        print(coefficient)
+        print("Все коэффициенты характеристического уравнения положительны.")
+        print("Можно вести дальнейший расчет по критериям устойчивости.")
+        return True
+    else:
+        print("Не выполнено необходимое условие устойчивости")
+        return False
+
+
+def Gurvits(tf):
+    print("\n" + "Устойчивость системы по критерию Гурвица:")
+    print(tf)
+    denominator = (tf.den[0])
+    coefficient = denominator[0]
+    uneven = []
+    even = []
+    for i in range(0, len(coefficient), 1):
+        if i % 2 != 0:
+            #print(i,"  uneven")
+            uneven.append(str(coefficient[i]))
+        else:
+            #print(i,"  even")
+            even.append(str(coefficient[i]))
+    #print("even=",even)
+    #print("UNEven=",uneven)
+    dimension = len(coefficient) - 1  # размерность
+    matrix_of_Gurvits = create_matrix_of_Gurvits(uneven, even, dimension)  # создаем матрицу n порядка
+    print("Матрица Гурвица:")
+    print(matrix_of_Gurvits)
+    """ Определители главных миноров матрицы"""
+    minors = []
+    for i in range(1, dimension + 1, 1):
+        matrix_for_minor = matrix_of_Gurvits[:i, :i]
+        minor = n.linalg.det(matrix_for_minor)
+        minors.append(minor)
+    print("\n" + "Главные диагональные миноры матрицы Гурвица:")
+    print(minors)
+
+    """Проверка определителей главных миноров"""
+    k = 0
+    for i in range(0, len(minors), 1):
+        if minors[i] > 0:
+            k = k + 1
+        else:
+            k = 0
+    if k == len(minors):
+        print("\n" + "Все главные диагональные миноры матрицы Гурвица положительны.")
+        print("Система устойчива по критерию Гурвица.")
+        return True
+    else:
+        print("Система не устойчива по критерию Гурвица")
+        return False
+
+
+def create_matrix_of_Gurvits(uneven, even, dimension):
+    matrix_of_Gurvits = []  # финальная матрица Гурвица
+    i1 = 0
+    i2 = 0
+    for m in range(0, dimension, 1):
+        start_uneven = i1
+        end_even = dimension - len(uneven) - i1
+        if m % 2 == 0:
+            for i in range(0, start_uneven, 1):
+                matrix_of_Gurvits.append("0")
+            for i in range(0, len(uneven), 1):
+                matrix_of_Gurvits.append(uneven[i])
+            for i in range(0, end_even, 1):
+                matrix_of_Gurvits.append("0")
+            i1 = i1 + 1
+        start_ch = i2
+        end_ch = dimension - len(even) - i2
+        if m % 2 != 0:
+            for i in range(0, start_ch, 1):
+                matrix_of_Gurvits.append("0")
+            for i in range(0, len(even), 1):
+                matrix_of_Gurvits.append(even[i])
+            for i in range(0, end_ch, 1):
+                matrix_of_Gurvits.append("0")
+            i2 = i2 + 1
+
+    mtr = ''
+    matrix_of_Gurvits = matrix_of_Gurvits
+    dimension = dimension
+    h = 1
+    for i in range(0, len(matrix_of_Gurvits), 1):
+        if ((h * dimension) - i) == 0 and i != 0 and i != len(matrix_of_Gurvits) - 1:
+            mtr = mtr + ';' + str(matrix_of_Gurvits[i]) + ' '
+            h = h + 1
+        else:
+            if i == len(matrix_of_Gurvits) - 1:
+                mtr = mtr + str(matrix_of_Gurvits[i])
+            else:
+                mtr = mtr + str(matrix_of_Gurvits[i]) + ' '
+    mat = n.matrix(mtr)
+    return mat
+
+
+def Mihaylov(tf):
+    print("\n" + "Устойчивость системы по критерию Михайлова")
+    denominator = (tf.den[0])  # знаменатель
+    coefficient = denominator[0]
+    w = s.symbols("w", real=True)
+    polynomial = 0
+    for i in range(0, len(coefficient), 1):
+        polynomial = polynomial + coefficient[i] * (1j * w) ** ((len(coefficient) - i) - 1)
+    polynomial = s.factor(polynomial)
+    print("Полученный полином:")
+    print(polynomial)
+    polynomial_real = s.re(polynomial)
+    polynomial_imaginary = s.im(polynomial)
+    x = [polynomial_real.subs({w: m}) for m in n.arange(0, 1, 0.001)]
+    y = [polynomial_imaginary.subs({w: m}) for m in n.arange(0, 1, 0.001)]
+    count_of_quadrants = 1
+    for i in range(1, len(x), 1):
+        if x[i] < 0:
+            if x[i - 1] > 0:
+                count_of_quadrants += 1
+        if x[i] > 0:
+            if x[i - 1] < 0:
+                count_of_quadrants += 1
+        if y[i] < 0:
+            if y[i - 1] > 0:
+                count_of_quadrants += 1
+        if y[i] > 0:
+            if y[i - 1] < 0:
+                count_of_quadrants += 1
+    print("\n" + "Количество охваченных квадрантов : ")
+    print(count_of_quadrants)
+    if count_of_quadrants == len(coefficient) - 1:
+        print("Система устойчива по критерию Михайлова")
+    else:
+        print("Система не устойчива по критерию Михайлова")
+    plt.figure(1)
+    plt.title("Годограф Михайлова")
+    plt.plot(x, y)
+    plt.grid()
+    plt.show()
+
+
+def Nyquist(tf_gap):
+    z = []
+    freq = []
+    print("\n" + "Устоичивость системы по критерию Найквиста")
+    x, y, f = c.nyquist_plot(tf_gap, Plot=False)
+    # for i in range(0, len(x)):
+    #    r = pow(x[i], 2) + pow(y[i], 2)
+    #    z.append(pow(r, 0.5))
+    # print(z)
+    print(len(y))
+
+    plt.figure(1)
+    plt.plot(x, y)
+    plt.grid(True)
+    circle1 = plt.Circle((0, 0), 1, color='r', fill=False)
+    ax = plt.gca()
+    ax.add_patch(circle1)
+    plt.axis('scaled')
+    plt.show()
+
+
+def Pole(tf):
+    poles = cm.pole(tf)
+    print("\n" + "Полюса уравнения:")
+    print(poles)
+    k = 0
+    for i in range(len(poles)):
+        if poles[i].real > 0:
+            k += 1
+        i += 1
+    if k == 0:
+        print("Все корни расположены в левой полуплоскости")
+        print("Система устойчива")
+
+    else:
+        print("Система не устойчива")
+
+
+def Full_Analysis(tf, tf_gap):
+    PK = PosKoefs(tf)
+    if PK:
+        #Gurvits(tf)
+        Mihaylov(tf)
+        #Nyquist(tf_gap)
+        #Pole(tf)
+'''
+
+# W = cm.tf([99.25, 212.75, 125.5, 12], [0.1, 103.2, 210.6, 119.5, 12])  # передаточная функция замкнутой системы для КР
+# W_gap = cm.tf([99.25, 113.5, 12], [0.1, 1.1, 1, 0])  # передаточная функция разомкнутой системы для КР
+'''
+W1 = cm.tf([11.81], [2., 1.]) #обратная связь
+W2 = cm.tf([1.], [5., 1.])  # генератор
+W3 = cm.tf([1.0, 1.], [4.0]) # пт
+W4 = cm.tf([22.], [8., 1.]) # усил
+W5 = (W2 * W3 * W4)
+W = cm.feedback(W5, W1)
+W_gap = (W1 * W2 * W3 * W4)
+#print(W)
+#print(W_gap)
+cm.bode(W_gap, Plot=True)
+#plt.figure(1)
+plt.plot
+plt.show()
+#y, t = cm.step(W)
+#plt.figure()
+#plt.plot(t, y)
+plt.grid(True)
+plt.show()
+
+
+# функция для нахождения Кос с заданной точностью,для определения устоичивости системы
+'''
+
+start = 10
+end = 12
+finish = False
+while not finish:
+    step = (end - start) / 10
+    if step < 0.01:
+        finish = True
+        print("Предельное k = ", start)
+    #lim = False
+    key = [i for i in n.arange(start, end, step)]
+    if not finish:
+        print("Переопределение границ")
+        print(start, end, step)
+        for k in range(0, len(key), 1):
+            print("Подставляем k= ", key[k])
+            W1 = cm.tf([key[k]], [2., 1.]) #обратная связь
+            #print("W1=",W)
+            W2 = cm.tf([1.], [5., 1.])  # генератор
+            W3 = cm.tf([1.0, 1.], [4.0]) # пт
+            W4 = cm.tf([22.], [8., 1.]) # усил
+            W5 = (W2 * W3 * W4)
+            #print(W5)
+            W = cm.feedback(W5, W1)
+            print(W)
+            
+            W_gap = (W1 * W2 * W3 * W4)
+            lim = Gurvits(W)
+            #print(lim)
+            if not lim:
+                end = key[k]
+                start = key[k - 1]
+                break
+print(start)
+'''
+W1 = cm.tf([100], [2., 1.]) #обратная связь
+W2 = cm.tf([1.], [5., 1.])  # генератор
+W3 = cm.tf([1.0, 1.], [4.0]) # пт
+W4 = cm.tf([22.], [8., 1.]) # усил
+W5 = (W2 * W3 * W4)
+W = cm.feedback(W5, W1)
+W_gap = (W1 * W2 * W3 * W4)
+Full_Analysis(W, W_gap)
